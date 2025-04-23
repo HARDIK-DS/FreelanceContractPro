@@ -229,7 +229,12 @@ export class MemStorage implements IStorage {
 
   async createMilestone(milestoneData: InsertMilestone): Promise<Milestone> {
     const id = this.milestoneIdCounter++;
-    const milestone: Milestone = { ...milestoneData, id, completedDate: null };
+    const milestone: Milestone = { 
+      ...milestoneData, 
+      id, 
+      completedDate: null,
+      status: milestoneData.status || MilestoneStatus.NOT_STARTED
+    };
     this.milestones.set(id, milestone);
     return milestone;
   }
@@ -282,9 +287,274 @@ export class MemStorage implements IStorage {
 
   async createTemplate(templateData: InsertTemplate): Promise<Template> {
     const id = this.templateIdCounter++;
-    const template: Template = { ...templateData, id };
+    const template: Template = { 
+      ...templateData, 
+      id,
+      isPublic: templateData.isPublic === undefined ? false : templateData.isPublic 
+    };
     this.templates.set(id, template);
     return template;
+  }
+  
+  // Escrow Payment operations
+  async createEscrowPayment(paymentData: InsertEscrowPayment): Promise<EscrowPayment> {
+    const id = this.escrowPaymentIdCounter++;
+    const now = new Date();
+    
+    const payment: EscrowPayment = {
+      ...paymentData,
+      id,
+      paymentDetails: paymentData.paymentDetails || null,
+      stripePaymentIntentId: paymentData.stripePaymentIntentId || null,
+      blockchainTxHash: paymentData.blockchainTxHash || null,
+      depositedAt: now,
+      releasedAt: null
+    };
+    
+    this.escrowPayments.set(id, payment);
+    return payment;
+  }
+  
+  async getEscrowPayment(id: number): Promise<EscrowPayment | undefined> {
+    return this.escrowPayments.get(id);
+  }
+  
+  async getEscrowPaymentsByMilestone(milestoneId: number): Promise<EscrowPayment[]> {
+    return Array.from(this.escrowPayments.values()).filter(
+      (payment) => payment.milestoneId === milestoneId
+    );
+  }
+  
+  async releaseEscrowPayment(id: number, releaseDate: Date): Promise<EscrowPayment | undefined> {
+    const payment = this.escrowPayments.get(id);
+    
+    if (!payment) {
+      return undefined;
+    }
+    
+    const updatedPayment = { ...payment, releasedAt: releaseDate };
+    this.escrowPayments.set(id, updatedPayment);
+    return updatedPayment;
+  }
+  
+  // Dispute operations
+  async createDispute(disputeData: InsertDispute): Promise<Dispute> {
+    const id = this.disputeIdCounter++;
+    const now = new Date();
+    
+    const dispute: Dispute = {
+      ...disputeData,
+      id,
+      createdAt: now,
+      resolvedAt: null,
+      status: disputeData.status || DisputeStatus.OPEN
+    };
+    
+    this.disputes.set(id, dispute);
+    return dispute;
+  }
+  
+  async getDispute(id: number): Promise<Dispute | undefined> {
+    return this.disputes.get(id);
+  }
+  
+  async getDisputesByContract(contractId: number): Promise<Dispute[]> {
+    return Array.from(this.disputes.values()).filter(
+      (dispute) => dispute.contractId === contractId
+    );
+  }
+  
+  async getDisputesByUser(userId: number): Promise<Dispute[]> {
+    return Array.from(this.disputes.values()).filter(
+      (dispute) => dispute.initiatedBy === userId || dispute.respondent === userId
+    );
+  }
+  
+  async updateDisputeStatus(id: number, status: DisputeStatus, resolution?: string): Promise<Dispute | undefined> {
+    const dispute = this.disputes.get(id);
+    
+    if (!dispute) {
+      return undefined;
+    }
+    
+    const updatedDispute: Dispute = { 
+      ...dispute, 
+      status,
+      resolution: resolution || dispute.resolution,
+      resolvedAt: [
+        DisputeStatus.RESOLVED_FOR_CLIENT,
+        DisputeStatus.RESOLVED_FOR_FREELANCER,
+        DisputeStatus.RESOLVED_COMPROMISE
+      ].includes(status) ? new Date() : dispute.resolvedAt
+    };
+    
+    this.disputes.set(id, updatedDispute);
+    return updatedDispute;
+  }
+  
+  async assignModerator(disputeId: number, moderatorId: number): Promise<Dispute | undefined> {
+    const dispute = this.disputes.get(disputeId);
+    
+    if (!dispute) {
+      return undefined;
+    }
+    
+    const updatedDispute: Dispute = {
+      ...dispute,
+      moderatorId,
+      status: DisputeStatus.UNDER_REVIEW
+    };
+    
+    this.disputes.set(disputeId, updatedDispute);
+    return updatedDispute;
+  }
+  
+  // Review operations
+  async createReview(reviewData: InsertReview): Promise<Review> {
+    const id = this.reviewIdCounter++;
+    const now = new Date();
+    
+    const review: Review = {
+      ...reviewData,
+      id,
+      createdAt: now
+    };
+    
+    this.reviews.set(id, review);
+    return review;
+  }
+  
+  async getReviewsByUser(userId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values()).filter(
+      (review) => review.receiverId === userId
+    );
+  }
+  
+  async getReviewsByContract(contractId: number): Promise<Review[]> {
+    return Array.from(this.reviews.values()).filter(
+      (review) => review.contractId === contractId
+    );
+  }
+  
+  async getUserRating(userId: number): Promise<number> {
+    const reviews = await this.getReviewsByUser(userId);
+    
+    if (reviews.length === 0) {
+      return 0;
+    }
+    
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    return totalRating / reviews.length;
+  }
+  
+  // Blockchain Contract operations
+  async createBlockchainContract(contractData: InsertBlockchainContract): Promise<BlockchainContract> {
+    const id = this.blockchainContractIdCounter++;
+    const now = new Date();
+    
+    const blockchainContract: BlockchainContract = {
+      ...contractData,
+      id,
+      deployedAt: now
+    };
+    
+    this.blockchainContracts.set(id, blockchainContract);
+    return blockchainContract;
+  }
+  
+  async getBlockchainContract(id: number): Promise<BlockchainContract | undefined> {
+    return this.blockchainContracts.get(id);
+  }
+  
+  async getBlockchainContractByAddress(address: string, network: string): Promise<BlockchainContract | undefined> {
+    return Array.from(this.blockchainContracts.values()).find(
+      (contract) => contract.contractAddress === address && contract.network === network
+    );
+  }
+  
+  async getBlockchainContractsByAppContract(contractId: number): Promise<BlockchainContract[]> {
+    return Array.from(this.blockchainContracts.values()).filter(
+      (contract) => contract.contractId === contractId
+    );
+  }
+  
+  // 2FA operations
+  async setupTwoFactorAuth(twoFactorData: InsertTwoFactorAuth): Promise<TwoFactorAuth> {
+    const id = this.userIdCounter++; // Reusing the user ID counter as they're 1:1 with users
+    
+    const twoFactorAuth: TwoFactorAuth = {
+      ...twoFactorData,
+      id,
+      verified: twoFactorData.verified || false,
+      createdAt: new Date()
+    };
+    
+    this.twoFactorAuths.set(id, twoFactorAuth);
+    return twoFactorAuth;
+  }
+  
+  async getTwoFactorAuthByUser(userId: number): Promise<TwoFactorAuth | undefined> {
+    return Array.from(this.twoFactorAuths.values()).find(
+      (tfa) => tfa.userId === userId
+    );
+  }
+  
+  async verifyTwoFactorAuth(userId: number, token: string): Promise<boolean> {
+    // In a real implementation, we would validate the token against the secret
+    // For this mock implementation, we'll just return true for demo purposes
+    const tfa = await this.getTwoFactorAuthByUser(userId);
+    
+    if (!tfa) {
+      return false;
+    }
+    
+    // Mark as verified if not already
+    if (!tfa.verified) {
+      tfa.verified = true;
+      this.twoFactorAuths.set(tfa.id, tfa);
+    }
+    
+    return true; // In reality, validate token
+  }
+  
+  // Notification operations
+  async createNotification(notificationData: InsertNotification): Promise<Notification> {
+    const id = this.notificationIdCounter++;
+    const now = new Date();
+    
+    const notification: Notification = {
+      ...notificationData,
+      id,
+      read: false,
+      createdAt: now
+    };
+    
+    this.notifications.set(id, notification);
+    return notification;
+  }
+  
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => {
+        // Sort by read status (unread first) and then by date (newest first)
+        if (a.read !== b.read) {
+          return a.read ? 1 : -1;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }
+  
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    
+    if (!notification) {
+      return undefined;
+    }
+    
+    const updatedNotification = { ...notification, read: true };
+    this.notifications.set(id, updatedNotification);
+    return updatedNotification;
   }
   
   // Dashboard stats
@@ -293,6 +563,8 @@ export class MemStorage implements IStorage {
     pendingPayments: number;
     totalEarned: number;
     templateCount: number;
+    disputesCount: number;
+    averageRating: number;
   }> {
     const user = await this.getUser(userId);
     
@@ -301,7 +573,9 @@ export class MemStorage implements IStorage {
         activeContracts: 0,
         pendingPayments: 0,
         totalEarned: 0,
-        templateCount: 0
+        templateCount: 0,
+        disputesCount: 0,
+        averageRating: 0
       };
     }
     
@@ -343,11 +617,20 @@ export class MemStorage implements IStorage {
     const templates = await this.getUserTemplates(userId);
     const templateCount = templates.length;
     
+    // Get user disputes count
+    const userDisputes = await this.getDisputesByUser(userId);
+    const disputesCount = userDisputes.length;
+    
+    // Get user average rating
+    const averageRating = await this.getUserRating(userId);
+    
     return {
       activeContracts,
       pendingPayments,
       totalEarned,
-      templateCount
+      templateCount,
+      disputesCount,
+      averageRating
     };
   }
 }
