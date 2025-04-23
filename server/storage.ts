@@ -3,7 +3,13 @@ import {
   contracts, Contract, InsertContract, 
   milestones, Milestone, InsertMilestone,
   templates, Template, InsertTemplate,
-  ContractStatus, MilestoneStatus
+  escrowPayments, EscrowPayment, InsertEscrowPayment,
+  disputes, Dispute, InsertDispute,
+  reviews, Review, InsertReview,
+  blockchainContracts, BlockchainContract, InsertBlockchainContract,
+  twoFactorAuth, TwoFactorAuth, InsertTwoFactorAuth,
+  notifications, Notification, InsertNotification,
+  ContractStatus, MilestoneStatus, PaymentMethod, DisputeStatus, UserType
 } from "@shared/schema";
 
 export interface IStorage {
@@ -12,6 +18,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<User>): Promise<User | undefined>;
   
   // Contract operations
   getContract(id: number): Promise<Contract | undefined>;
@@ -33,12 +40,50 @@ export interface IStorage {
   getPublicTemplates(): Promise<Template[]>;
   createTemplate(template: InsertTemplate): Promise<Template>;
   
+  // Escrow Payment operations
+  createEscrowPayment(payment: InsertEscrowPayment): Promise<EscrowPayment>;
+  getEscrowPayment(id: number): Promise<EscrowPayment | undefined>;
+  getEscrowPaymentsByMilestone(milestoneId: number): Promise<EscrowPayment[]>;
+  releaseEscrowPayment(id: number, releaseDate: Date): Promise<EscrowPayment | undefined>;
+  
+  // Dispute operations
+  createDispute(dispute: InsertDispute): Promise<Dispute>;
+  getDispute(id: number): Promise<Dispute | undefined>;
+  getDisputesByContract(contractId: number): Promise<Dispute[]>;
+  getDisputesByUser(userId: number): Promise<Dispute[]>;
+  updateDisputeStatus(id: number, status: DisputeStatus, resolution?: string): Promise<Dispute | undefined>;
+  assignModerator(disputeId: number, moderatorId: number): Promise<Dispute | undefined>;
+  
+  // Review operations
+  createReview(review: InsertReview): Promise<Review>;
+  getReviewsByUser(userId: number): Promise<Review[]>;
+  getReviewsByContract(contractId: number): Promise<Review[]>;
+  getUserRating(userId: number): Promise<number>; // Average rating
+  
+  // Blockchain Contract operations
+  createBlockchainContract(contract: InsertBlockchainContract): Promise<BlockchainContract>;
+  getBlockchainContract(id: number): Promise<BlockchainContract | undefined>;
+  getBlockchainContractByAddress(address: string, network: string): Promise<BlockchainContract | undefined>;
+  getBlockchainContractsByAppContract(contractId: number): Promise<BlockchainContract[]>;
+  
+  // 2FA operations
+  setupTwoFactorAuth(twoFactorData: InsertTwoFactorAuth): Promise<TwoFactorAuth>;
+  getTwoFactorAuthByUser(userId: number): Promise<TwoFactorAuth | undefined>;
+  verifyTwoFactorAuth(userId: number, token: string): Promise<boolean>;
+  
+  // Notification operations
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: number): Promise<Notification[]>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  
   // Dashboard stats
   getUserStats(userId: number): Promise<{
     activeContracts: number;
     pendingPayments: number;
     totalEarned: number;
     templateCount: number;
+    disputesCount: number;
+    averageRating: number;
   }>;
 }
 
@@ -47,22 +92,44 @@ export class MemStorage implements IStorage {
   private contracts: Map<number, Contract>;
   private milestones: Map<number, Milestone>;
   private templates: Map<number, Template>;
+  private escrowPayments: Map<number, EscrowPayment>;
+  private disputes: Map<number, Dispute>;
+  private reviews: Map<number, Review>;
+  private blockchainContracts: Map<number, BlockchainContract>;
+  private twoFactorAuths: Map<number, TwoFactorAuth>;
+  private notifications: Map<number, Notification>;
   
   private userIdCounter: number;
   private contractIdCounter: number;
   private milestoneIdCounter: number;
   private templateIdCounter: number;
+  private escrowPaymentIdCounter: number;
+  private disputeIdCounter: number;
+  private reviewIdCounter: number;
+  private blockchainContractIdCounter: number;
+  private notificationIdCounter: number;
 
   constructor() {
     this.users = new Map();
     this.contracts = new Map();
     this.milestones = new Map();
     this.templates = new Map();
+    this.escrowPayments = new Map();
+    this.disputes = new Map();
+    this.reviews = new Map();
+    this.blockchainContracts = new Map();
+    this.twoFactorAuths = new Map();
+    this.notifications = new Map();
     
     this.userIdCounter = 1;
     this.contractIdCounter = 1;
     this.milestoneIdCounter = 1;
     this.templateIdCounter = 1;
+    this.escrowPaymentIdCounter = 1;
+    this.disputeIdCounter = 1;
+    this.reviewIdCounter = 1;
+    this.blockchainContractIdCounter = 1;
+    this.notificationIdCounter = 1;
   }
 
   // User operations
@@ -84,9 +151,27 @@ export class MemStorage implements IStorage {
 
   async createUser(userData: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const user: User = { ...userData, id };
+    // Ensure proper defaults for optional fields
+    const user: User = { 
+      ...userData, 
+      id,
+      bio: userData.bio || null,
+      profileImage: userData.profileImage || null 
+    };
     this.users.set(id, user);
     return user;
+  }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    
+    if (!user) {
+      return undefined;
+    }
+    
+    const updatedUser = { ...user, ...userData };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
 
   // Contract operations
@@ -112,7 +197,8 @@ export class MemStorage implements IStorage {
     const contract: Contract = { 
       ...contractData,
       id, 
-      createdAt: now 
+      createdAt: now,
+      status: contractData.status || ContractStatus.DRAFT
     };
     this.contracts.set(id, contract);
     return contract;
