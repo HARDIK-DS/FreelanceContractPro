@@ -14,6 +14,7 @@ import Templates from "@/pages/templates";
 import Home from "@/pages/home";
 import AIInsights from "@/pages/ai-insights";
 import TrustScore from "@/pages/trust-score";
+import SmartContracts from "@/pages/smart-contracts"; 
 import { useAuth } from "@/lib/auth";
 
 function Router() {
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/templates" component={Templates} />
       <Route path="/ai-insights" component={AIInsights} />
       <Route path="/trust-score" component={TrustScore} />
+      <Route path="/smart-contracts" component={SmartContracts} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

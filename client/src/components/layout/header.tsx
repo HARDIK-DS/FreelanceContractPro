@@ -93,6 +93,12 @@ export default function Header() {
                     Trust Score
                   </a>
                 </Link>
+                <Link href="/smart-contracts">
+                  <a className={`${isActiveRoute("/smart-contracts") ? "border-primary text-neutral-900" : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}>
+                    <CoinsIcon className="h-4 w-4 mr-1" />
+                    Smart Contracts
+                  </a>
+                </Link>
               </nav>
             )}
           </div>
