@@ -8,7 +8,14 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { BellIcon } from "lucide-react";
+import { 
+  BellIcon,
+  ShieldAlertIcon, 
+  BarChartIcon, 
+  FileTextIcon,
+  BrainCircuitIcon,
+  CoinsIcon
+} from "lucide-react";
 
 export default function Header() {
   const [location] = useLocation();
@@ -72,6 +79,18 @@ export default function Header() {
                 <Link href="/templates">
                   <a className={`${isActiveRoute("/templates") ? "border-primary text-neutral-900" : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}>
                     Templates
+                  </a>
+                </Link>
+                <Link href="/ai-insights">
+                  <a className={`${isActiveRoute("/ai-insights") ? "border-primary text-neutral-900" : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}>
+                    <BrainCircuitIcon className="h-4 w-4 mr-1" />
+                    AI Insights
+                  </a>
+                </Link>
+                <Link href="/trust-score">
+                  <a className={`${isActiveRoute("/trust-score") ? "border-primary text-neutral-900" : "border-transparent text-neutral-500 hover:border-neutral-300 hover:text-neutral-700"} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}>
+                    <ShieldAlertIcon className="h-4 w-4 mr-1" />
+                    Trust Score
                   </a>
                 </Link>
               </nav>

@@ -12,6 +12,8 @@ import NewContract from "@/pages/contracts/new";
 import Payments from "@/pages/payments";
 import Templates from "@/pages/templates";
 import Home from "@/pages/home";
+import AIInsights from "@/pages/ai-insights";
+import TrustScore from "@/pages/trust-score";
 import { useAuth } from "@/lib/auth";
 
 function Router() {
@@ -32,6 +34,8 @@ function Router() {
       <Route path="/contracts/new" component={NewContract} />
       <Route path="/payments" component={Payments} />
       <Route path="/templates" component={Templates} />
+      <Route path="/ai-insights" component={AIInsights} />
+      <Route path="/trust-score" component={TrustScore} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

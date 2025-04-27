@@ -41,10 +41,10 @@ export async function deploySmartContract(
     );
     
     const contract = await Factory.deploy();
-    await contract.deployed();
+    await contract.deploymentTransaction()?.wait();
     
     return {
-      address: contract.address,
+      address: await contract.getAddress(),
       abi: MILESTONE_CONTRACT_ABI
     };
   } catch (error) {
@@ -59,12 +59,12 @@ export async function deploySmartContract(
 export async function depositToEscrow(
   contractInfo: BlockchainContract,
   wallet: ethers.Wallet,
-  amount: ethers.BigNumber
+  amount: bigint
 ): Promise<ethers.TransactionResponse> {
   try {
     const contract = new ethers.Contract(
       contractInfo.contractAddress,
-      contractInfo.contractAbi,
+      contractInfo.contractAbi as ethers.InterfaceAbi,
       wallet
     );
     
@@ -87,12 +87,12 @@ export async function releaseMilestonePayment(
   wallet: ethers.Wallet,
   milestoneId: number,
   freelancerAddress: string,
-  amount: ethers.BigNumber
+  amount: bigint
 ): Promise<ethers.TransactionResponse> {
   try {
     const contract = new ethers.Contract(
       contractInfo.contractAddress,
-      contractInfo.contractAbi,
+      contractInfo.contractAbi as ethers.InterfaceAbi,
       wallet
     );
     
@@ -120,7 +120,7 @@ export async function createMilestoneDispute(
   try {
     const contract = new ethers.Contract(
       contractInfo.contractAddress,
-      contractInfo.contractAbi,
+      contractInfo.contractAbi as ethers.InterfaceAbi,
       wallet
     );
     
@@ -141,12 +141,12 @@ export async function resolveDispute(
   moderatorWallet: ethers.Wallet,
   milestoneId: number,
   recipientAddress: string,
-  amount: ethers.BigNumber
+  amount: bigint
 ): Promise<ethers.TransactionResponse> {
   try {
     const contract = new ethers.Contract(
       contractInfo.contractAddress,
-      contractInfo.contractAbi,
+      contractInfo.contractAbi as ethers.InterfaceAbi,
       moderatorWallet
     );
     
@@ -169,11 +169,11 @@ export async function resolveDispute(
 export async function getContractBalance(
   contractInfo: BlockchainContract,
   provider: ethers.JsonRpcProvider
-): Promise<ethers.BigNumber> {
+): Promise<bigint> {
   try {
     const contract = new ethers.Contract(
       contractInfo.contractAddress,
-      contractInfo.contractAbi,
+      contractInfo.contractAbi as ethers.InterfaceAbi,
       provider
     );
     
